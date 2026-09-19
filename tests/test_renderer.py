@@ -122,6 +122,19 @@ def test_executable() -> None:
     assert "echo hello" in snippet
 
 
+def test_executable_with_output() -> None:
+    import xml.etree.ElementTree as ET
+
+    ctx = _make_ctx()
+    ep = ExecuteProcess(cmd=["domain_bridge", "config.yaml"], name="domain_bridge", output="both")
+    resolved = ep.execute(ctx)
+    elems = resolved[0].serialize_resolved()
+    assert len(elems) == 1
+    assert elems[0].get("output") == "both"
+    snippet = ET.tostring(elems[0], encoding="unicode")
+    assert 'output="both"' in snippet
+
+
 def test_executable_env_children() -> None:
     ctx = _make_ctx()
     ep = ExecuteProcess(cmd=["echo"], additional_env={"ROSCOPE_TEST_VAR": "hello"})

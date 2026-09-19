@@ -65,6 +65,12 @@ class ExecuteProcess(Action):
         else:
             self.name = normalize_to_list_of_substitutions(name)
         self.additional_env = kwargs.pop("additional_env", None)
+        # Matching official: output may be str (resolved) or substitution tokens.
+        output = kwargs.pop("output", None)
+        if output is None or isinstance(output, str):
+            self.output = output
+        else:
+            self.output = normalize_to_list_of_substitutions(output)
         self.env: dict = {}
 
     @classmethod
@@ -136,6 +142,10 @@ class ExecuteProcess(Action):
             kwargs["cmd"] = cls._parse_cmdline(cmd_raw, parser)
         name_raw = entity.get_attr("name", optional=True)
         kwargs["name"] = parser.parse_substitution(name_raw) if name_raw else None
+        if "output" not in ignore:
+            output = entity.get_attr("output", optional=True)
+            if output is not None:
+                kwargs["output"] = parser.parse_substitution(output)
         kwargs["additional_env"] = cls.parse_envs(entity, parser)
         return cls, kwargs
 
@@ -147,6 +157,7 @@ class ExecuteProcess(Action):
             else [self.cmd]
         )
         name = context.perform_substitution(self.name) if self.name is not None else None
+        output = None if self.output is None else context.perform_substitution(self.output) or None
 
         env = env_overrides(context)
         if self.additional_env is not None:
@@ -159,7 +170,7 @@ class ExecuteProcess(Action):
                     )
                     continue
                 env[k] = resolve_value(v_tokens, context) or ""
-        resolved = ExecuteProcess(cmd=" ".join(cmd_parts), name=name)
+        resolved = ExecuteProcess(cmd=" ".join(cmd_parts), name=name, output=output)
         resolved.env = env
         return [resolved]
 
@@ -170,6 +181,8 @@ class ExecuteProcess(Action):
         elem.set("cmd", self.cmd if isinstance(self.cmd, str) else "")
         if self.name:
             elem.set("name", self.name if isinstance(self.name, str) else "")
+        if self.output:
+            elem.set("output", self.output if isinstance(self.output, str) else "")
         for k, v in sorted((self.env or {}).items()):
             e = ET.SubElement(elem, "env")
             e.set("name", k)

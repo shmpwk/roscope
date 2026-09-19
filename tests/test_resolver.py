@@ -1239,6 +1239,23 @@ class TestActionRegistry:
         _, state = _parse_to_tracked(xml)
         assert "my_pkg" in state.packages
 
+    def test_executable_with_output(self):
+        """<executable output=...> must parse (official ExecuteProcess attribute)."""
+        from roscope.entities.actions.execute_process import ExecuteProcess
+
+        xml = textwrap.dedent("""\
+            <launch>
+              <executable name="domain_bridge" cmd="domain_bridge --config c.yaml" output="both"/>
+            </launch>
+        """)
+        ctx = _fresh_walker_ctx()
+        elements = parse_xml_launch(xml, "test.launch.xml")
+        resolved = resolve_xml_elements(elements, ctx)
+        execs = [a for a in resolved if isinstance(a, ExecuteProcess)]
+        assert len(execs) == 1
+        assert execs[0].output == "both"
+        assert execs[0].serialize_resolved()[0].get("output") == "both"
+
     def test_errors_and_warnings(self, caplog):
         xml = textwrap.dedent("""\
             <launch>
