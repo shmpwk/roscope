@@ -1883,6 +1883,46 @@ class TestExecutableInPackage:
         assert "preview mode" in caplog.text
 
 
+class TestLaunchSubstitutionModuleShim:
+    """launch.substitution (singular) exports Substitution base class."""
+
+    def test_launch_substitution_module_exports_substitution(self):
+        from roscope.entities.substitution import Substitution as RoscopeSubstitution
+
+        _install_import_patching()
+        assert "launch.substitution" in sys.modules
+        from launch.substitution import Substitution as Shimmed
+
+        assert Shimmed is RoscopeSubstitution
+
+    def test_subclass_from_launch_substitution_works(self):
+        """Autoware AD API adaptors: class Namespace(Substitution)."""
+        _install_import_patching()
+        from launch.substitution import Substitution
+
+        class Namespace(Substitution):
+            def __init__(self, separator, suffix):
+                self.separator = separator
+                self.suffix = suffix
+
+            def perform(self, context):
+                namespace = context.launch_configurations.get("ros_namespace", "")
+                namespace = f"{namespace}{self.separator}{self.suffix}"
+                return namespace.replace("/", self.separator).lstrip(self.separator)
+
+        ctx = _make_context()
+        ctx._launch_configurations["ros_namespace"] = "/ros/ns"
+        assert Namespace("/", "foo/bar").perform(ctx) == "ros/ns/foo/bar"
+
+    def test_top_level_launch_exports_substitution(self):
+        from roscope.entities.substitution import Substitution as RoscopeSubstitution
+
+        _install_import_patching()
+        import launch
+
+        assert launch.Substitution is RoscopeSubstitution
+
+
 class TestLaunchXmlShim:
     """launch_xml.launch_description_sources shim resolves to roscope implementation."""
 
